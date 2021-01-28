@@ -1,0 +1,4 @@
+---
+- name: deploy web server
+  hosts: myservers
+  remote_user: root
