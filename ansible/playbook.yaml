@@ -2,3 +2,49 @@
 - name: deploy web server
   hosts: myservers
   remote_user: root
+
+  tasks:
+  - name: yum upgrade
+    yum:
+      name: '*'
+      state: latest
+
+  - name: install docker
+    yum:
+      name: docker
+      state: latest
+
+  - name: start and enable docker
+    service:
+      name: docker
+      state: started
+      enabled: yes
+
+  - name: create build directory
+    file:
+      path: /root/app
+      state: directory
+      owner: root
+      group: root
+      mode: '0755'
+
+  - name: copy over app files
+    copy:
+      src: ../nginx/
+      dest: /root/app/
+
+  - name: build container image
+    docker_image:
+      name: webapp:v1.0
+      build:
+        path: /root/app
+        source: build
+      state: present
+      
+  - name: start the container
+    docker_container:
+      name: myapp
+      image: webapp:v1.0
+      state: started
+      ports: 
+        - '80:80'

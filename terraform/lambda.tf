@@ -1,31 +1,19 @@
-provider "aws" {
-   region = var.region
+resource "aws_lambda_function" "time" {
+  function_name = "time-lambda"
+  filename      = "../lambda/main.zip"
+
+  handler = "main.lambda_handler"
+  runtime = "python3.8"
+
+  role = aws_iam_role.lambda_exec.arn
 }
 
-resource "aws_lambda_function" "example" {
-   function_name = "ServerlessExample"
-
-   # The bucket name as created earlier with "aws s3api create-bucket"
-   s3_bucket = "terraform-serverless-example"
-   s3_key    = "v1.0.0/example.zip"
-
-   # "main" is the filename within the zip file (main.js) and "handler"
-   # is the name of the property under which the handler function was
-   # exported in that file.
-   handler = "main.handler"
-   runtime = "nodejs10.x"
-
-   role = aws_iam_role.lambda_exec.arn
-}
-
- # IAM role which dictates what other AWS services the Lambda function
- # may access.
 resource "aws_iam_role" "lambda_exec" {
-   name = "serverless_example_lambda"
+  name = "time-lambda"
 
-   assume_role_policy = <<EOF
+  assume_role_policy = <<EOF
 {
-  "Version": "2012-10-17",
+  "Version": "2021-02-01",
   "Statement": [
     {
       "Action": "sts:AssumeRole",
@@ -41,3 +29,21 @@ EOF
 
 }
 
+resource "aws_lb_target_group" "lambda" {
+  name        = "lambda-tg-lb"
+  target_type = "lambda"
+}
+
+resource "aws_lb_target_group_attachment" "lambda" {
+  target_group_arn = aws_lb_target_group.lambda.arn
+  target_id        = aws_lambda_function.time.arn
+  depends_on       = [aws_lambda_permission.with_lb]
+}
+
+resource "aws_lambda_permission" "with_lb" {
+  statement_id  = "AllowExecutionFromlb"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.time.arn
+  principal     = "elasticloadbalancing.amazonaws.com"
+  source_arn    = aws_lb_target_group.lambda.arn
+}
